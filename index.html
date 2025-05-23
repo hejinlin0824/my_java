@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 交互式面试背诵手册</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1877f2;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            width: 100%;
+            padding: 0.875rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border: none;
+        }
+        .btn-primary {
+            background-color: #1877f2;
+            color: white;
+            margin-top: 0.5rem;
+        }
+        .btn-primary:hover {
+            background-color: #166fe5;
+        }
+        .btn-primary:disabled {
+            background-color: #a0aec0;
+            cursor: not-allowed;
+        }
+        .input-group {
+            margin-bottom: 1.25rem;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #4b5563;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+        .input-field:focus {
+            outline: none;
+            border-color: #1877f2;
+            box-shadow: 0 0 0 2px rgba(24, 119, 242, 0.2);
+        }
+        .alert {
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        .alert-error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none; /* 默认隐藏 */
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">面试手册登录</div>
+
+        <div id="login-form-view">
+            <div class="input-group">
+                <label for="username">账号 (区分大小写):</label>
+                <input type="text" id="username" name="username" class="input-field" required>
+            </div>
+            <div class="input-group">
+                <label for="password">密码:</label>
+                <input type="password" id="password" name="password" class="input-field" required>
+            </div>
+            <div id="loading-indicator" class="loader"></div>
+            <div id="login-error" class="alert alert-error" style="display: none;"></div>
+            <button id="login-btn" class="btn btn-primary">登录</button>
+        </div>
+    </div>
+
+    <script>
+        const loginBtn = document.getElementById('login-btn');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginErrorDiv = document.getElementById('login-error');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        async function attemptLogin() {
+            const username = usernameInput.value.trim(); // 用户名通常建议不区分大小写处理，但此处按区分处理
+            const password = passwordInput.value.trim();
+            
+            loginErrorDiv.style.display = 'none';
+            loginErrorDiv.textContent = '';
+
+            if (!username || !password) {
+                loginErrorDiv.textContent = '账号和密码不能为空。';
+                loginErrorDiv.style.display = 'block';
+                return;
+            }
+
+            loadingIndicator.style.display = 'block';
+            loginBtn.disabled = true;
+
+            try {
+                // 尝试构造并 fetch 用户对应的JSON文件路径
+                // 重要: 实际应用中要非常小心路径遍历等安全问题，这里仅为简单演示
+                // 用户名中的特殊字符需要进行编码处理，以确保URL有效且安全
+                const encodedUsername = encodeURIComponent(username);
+                const response = await fetch(`./user/${encodedUsername}.json`);
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        loginErrorDiv.textContent = '账号不存在。';
+                    } else {
+                        loginErrorDiv.textContent = `加载用户信息失败 (状态: ${response.status})。`;
+                    }
+                    loginErrorDiv.style.display = 'block';
+                    throw new Error(`Failed to fetch user data: ${response.status}`);
+                }
+
+                const userData = await response.json();
+
+                if (userData.password !== password) {
+                    loginErrorDiv.textContent = '密码错误。';
+                    loginErrorDiv.style.display = 'block';
+                    throw new Error('Incorrect password');
+                }
+
+                const now = new Date();
+                const expiryDate = new Date(userData.expiryTime); // expiryTime 应该是 ISO 8601 格式字符串
+
+                console.log("当前时间 (UTC):", now.toISOString());
+                console.log("账户到期时间 (UTC):", expiryDate.toISOString());
+                console.log("开通时间 (UTC):", new Date(userData.authTime).toISOString());
+
+
+                if (now > expiryDate) {
+                    loginErrorDiv.textContent = '您的账号已过期，请联系管理员。';
+                    loginErrorDiv.style.display = 'block';
+                    throw new Error('Account expired');
+                }
+
+                // 登录成功
+                alert('登录成功！正在跳转到面试手册...');
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('loggedInUser', username); // 存储原始输入的用户名
+                window.location.href = 't.html';
+
+            } catch (error) {
+                console.error("登录过程中发生错误:", error.message);
+                // 错误信息已在 try 块内设置，这里不再重复设置，除非是通用错误
+                if (!loginErrorDiv.textContent) { // 如果 try 块内没设置特定错误
+                    loginErrorDiv.textContent = '登录失败，请稍后再试或检查网络连接。';
+                    loginErrorDiv.style.display = 'block';
+                }
+            } finally {
+                loadingIndicator.style.display = 'none';
+                loginBtn.disabled = false;
+            }
+        }
+
+        loginBtn.addEventListener('click', attemptLogin);
+
+        // 允许按回车键登录
+        passwordInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // 阻止默认的回车行为 (例如表单提交)
+                attemptLogin();
+            }
+        });
+         usernameInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                attemptLogin(); 
+            }
+        });
+
+
+        // 对 t.html 的基本保护 (客户端很容易绕过)
+        if (window.location.pathname.endsWith('t.html')) {
+            if (localStorage.getItem('isLoggedIn') !== 'true') {
+                console.warn("用户未登录，但正在访问t.html。在生产环境中，应通过服务器端进行保护。");
+                // window.location.href = 'index.html'; // 可选：强制重定向回登录页
+            }
+        }
+    </script>
+</body>
+</html>
